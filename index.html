@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#765cff">
+<meta name="description" content="Nova AI — a polished assistant that runs in your browser, with optional real AI backing.">
+<title>Nova AI — Assistant</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#090b10;--panel:#10131a;--panel2:#171b24;--border:#272d39;--text:#f7f8fc;--muted:#9aa3b3;--accent:#765cff;--accent2:#a05cff;--user:#292f3b;--shadow:0 18px 55px #0005}
+body.light{--bg:#f5f7fb;--panel:#fff;--panel2:#eef1f6;--border:#dce1e9;--text:#111827;--muted:#667085;--user:#e6eaf0;--shadow:0 18px 55px #34405418}
+html,body{height:100%}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+button,textarea,select,input{font:inherit}
+.app{height:100%;display:flex}
+.sidebar{width:276px;flex:0 0 276px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;z-index:20;transition:.25s}
+.brand{display:flex;align-items:center;gap:11px;font-size:21px;font-weight:800;margin:3px 4px 20px}
+.brandIcon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 8px 24px #765cff35}
+.newChat{border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:12px;border-radius:12px;cursor:pointer;text-align:left;font-weight:650}
+.newChat:hover,.sideBtn:hover,.suggestion:hover{border-color:var(--accent);background:var(--panel2)}
+.historyLabel{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:22px 7px 8px}
+.history{flex:1;overflow:auto}
+.historyItem{padding:11px;border-radius:10px;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.historyItem:hover{background:var(--panel2);color:var(--text)}
+.bottom{border-top:1px solid var(--border);padding-top:10px}
+.sideBtn{width:100%;border:1px solid transparent;background:transparent;color:var(--muted);text-align:left;padding:10px;border-radius:9px;cursor:pointer}
+.main{min-width:0;flex:1;display:flex;flex-direction:column}
+.top{height:64px;flex:0 0 64px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:11px;background:color-mix(in srgb,var(--panel) 86%,transparent)}
+.menu{display:none;border:0;background:transparent;color:var(--text);font-size:23px;cursor:pointer}
+.model{font-weight:800}.badge{font-size:11px;color:#22c55e;border:1px solid #22c55e33;background:#22c55e12;padding:4px 8px;border-radius:99px}
+.badge.offline{color:#9aa3b3;border-color:#9aa3b333;background:#9aa3b312}
+.topRight{margin-left:auto;display:flex;gap:8px}.icon{width:38px;height:38px;border:1px solid var(--border);border-radius:10px;background:var(--panel);color:var(--text);cursor:pointer}
+.chat{flex:1;overflow:auto;padding:24px 18px}.messages{width:min(920px,100%);margin:auto}
+.welcome{text-align:center;padding:9vh 12px 30px}.heroIcon{width:78px;height:78px;margin:0 auto 20px;border-radius:25px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:38px;box-shadow:0 18px 45px #765cff30}.welcome h1{font-size:36px;letter-spacing:-.03em;margin-bottom:9px}.welcome p{color:var(--muted)}
+.suggestions{max-width:740px;margin:34px auto;display:grid;grid-template-columns:1fr 1fr;gap:11px}.suggestion{padding:15px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:14px;text-align:left;cursor:pointer}.suggestion strong{display:block;margin-bottom:4px}.suggestion span{font-size:12px;color:var(--muted)}
+.message{display:flex;gap:12px;margin:25px 0;animation:up .18s ease}.message.ai .avatar{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}.message.user .avatar{background:var(--user)}
+@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.avatar{width:36px;height:36px;flex:0 0 36px;border-radius:11px;display:grid;place-items:center;font-size:16px}.messageContent{min-width:0;line-height:1.7;overflow-wrap:anywhere}.messageContent p{white-space:pre-wrap;margin:0 0 10px}.messageContent p:last-child{margin-bottom:0}.messageName{font-size:11px;color:var(--muted);margin-bottom:3px}
+.messageContent code{background:var(--panel2);border:1px solid var(--border);padding:1px 5px;border-radius:5px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:.9em}
+.codeBlock{position:relative;margin:10px 0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0d1117}
+body.light .codeBlock{background:#0d1117}
+.codeBlockHead{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:#161b22;border-bottom:1px solid var(--border);font-size:11px;color:#9aa3b3}
+.codeBlock pre{margin:0;padding:14px;overflow:auto;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55}
+.codeBlock code{background:none;border:0;padding:0;color:#e6edf3}
+.copyBtn{border:1px solid #30363d;background:#21262d;color:#c9d1d9;padding:3px 9px;border-radius:6px;cursor:pointer;font-size:11px}
+.copyBtn:hover{background:#30363d}
+.typing{display:flex;gap:4px;padding:9px 0}.typing i{width:7px;height:7px;background:var(--muted);border-radius:50%;animation:b 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}@keyframes b{0%,60%,100%{transform:none}30%{transform:translateY(-5px)}}
+.inputArea{padding:10px 18px 17px}.inputBox{width:min(920px,100%);margin:auto;display:flex;align-items:flex-end;gap:8px;padding:9px;border:1px solid var(--border);background:var(--panel);border-radius:18px;box-shadow:var(--shadow)}textarea{flex:1;min-height:43px;max-height:180px;resize:none;border:0;outline:0;background:transparent;color:var(--text);padding:10px 8px;line-height:1.4}textarea::placeholder{color:var(--muted)}.send{width:43px;height:43px;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;font-size:18px}.send:disabled{opacity:.45}.disclaimer{text-align:center;color:var(--muted);font-size:10px;margin-top:8px}
+.overlay{position:fixed;inset:0;background:#0008;display:none;z-index:40}.overlay.active{display:block}.settings{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(480px,calc(100% - 30px));max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:22px;display:none;box-shadow:var(--shadow)}.settings.active{display:block}.settingsHead{display:flex;justify-content:space-between;margin-bottom:22px}.close{border:0;background:none;color:var(--text);font-size:25px;cursor:pointer}.setting{margin-bottom:18px}.setting label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}.setting select,.setting input{width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--panel2);color:var(--text)}.setting small{display:block;color:var(--muted);font-size:11px;margin-top:6px;line-height:1.5}.save{width:100%;padding:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;font-weight:700}
+.sectionLabel{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin:20px 0 10px}
+.sectionLabel:first-of-type{margin-top:0}
+@media(max-width:700px){.sidebar{position:fixed;left:-290px;top:0;bottom:0;box-shadow:18px 0 50px #0007}.sidebar.open{left:0}.menu{display:block}.suggestions{grid-template-columns:1fr}.welcome{padding-top:7vh}.welcome h1{font-size:28px}.chat{padding:14px}.inputArea{padding:8px 10px 12px}.top{padding:0 12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><div class="brandIcon">✦</div>Nova AI</div>
+  <button class="newChat" onclick="newChat()">＋ New chat</button>
+  <div class="historyLabel">Conversations</div>
+  <div class="history" id="history"></div>
+  <div class="bottom">
+    <button class="sideBtn" onclick="openSettings()">⚙️ Settings</button>
+    <button class="sideBtn" onclick="clearHistory()">🗑️ Clear history</button>
+  </div>
+</aside>
+
+<main class="main">
+<header class="top">
+  <button class="menu" onclick="toggleSidebar()">☰</button>
+  <div class="model">Nova AI</div><div class="badge" id="statusBadge">● Offline</div>
+  <div class="topRight">
+    <button class="icon" aria-label="Toggle theme" onclick="toggleTheme()">☀️</button>
+    <button class="icon" aria-label="Settings" onclick="openSettings()">⚙️</button>
+  </div>
+</header>
+
+<section class="chat" id="chat"><div class="messages" id="messages">
+<div class="welcome" id="welcome">
+  <div class="heroIcon">✦</div>
+  <h1>What can I help with?</h1>
+  <p id="welcomeSub">A private assistant that runs in your browser.</p>
+  <div class="suggestions">
+    <button class="suggestion" onclick="ask('Write a Python function that reverses a linked list, with comments')"><strong>💻 Coding help</strong><span>Write &amp; explain real code</span></button>
+    <button class="suggestion" onclick="ask('Review this function for bugs and suggest improvements')"><strong>🔍 Code review</strong><span>Find bugs, suggest fixes</span></button>
+    <button class="suggestion" onclick="ask('Tell me a short story')"><strong>📖 Tell me a story</strong><span>Make up an adventure</span></button>
+    <button class="suggestion" onclick="ask('What can you do?')"><strong>🤖 What can you do?</strong><span>Explore Nova's abilities</span></button>
+  </div>
+</div>
+</div></section>
+
+<div class="inputArea">
+  <div class="inputBox">
+    <textarea id="input" rows="1" placeholder="Message Nova AI..." onkeydown="keyDown(event)" oninput="resizeInput(this)"></textarea>
+    <button class="send" id="send" onclick="send()">➤</button>
+  </div>
+  <div class="disclaimer" id="disclaimer">Nova AI runs locally in this browser. Add an API key in Settings to enable real AI responses.</div>
+</div>
+</main>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSettings()"></div>
+<div class="settings" id="settings">
+  <div class="settingsHead"><h2>Settings</h2><button class="close" onclick="closeSettings()">×</button></div>
+
+  <div class="sectionLabel">Appearance</div>
+  <div class="setting"><label>Theme</label><select id="themeSelect" onchange="changeTheme(this.value)"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+  <div class="setting"><label>Assistant personality</label><select id="personality"><option value="friendly">Friendly</option><option value="funny">Funny</option><option value="professional">Professional</option><option value="coding">Coding expert 👨‍💻</option><option value="pirate">Pirate 🏴‍☠️</option></select></div>
+
+  <div class="sectionLabel">Real AI (optional)</div>
+  <div class="setting">
+    <label>Provider</label>
+    <select id="provider" onchange="updateProviderDefaults()">
+      <option value="anthropic">Anthropic (recommended for coding)</option>
+      <option value="openai">OpenAI-compatible (OpenAI, Groq, OpenRouter, Ollama...)</option>
+    </select>
+  </div>
+  <div class="setting"><label>API key</label><input type="password" id="apiKey" placeholder="sk-..." autocomplete="off"></div>
+  <div class="setting"><label>Model</label><input type="text" id="modelName" placeholder="e.g. claude-sonnet-4-6 or gpt-4o">
+    <small>For coding, stronger models give noticeably better results. Good defaults: <code>claude-sonnet-4-6</code> (Anthropic) or <code>gpt-4o</code> (OpenAI).</small>
+  </div>
+  <div class="setting"><label>Base URL</label><input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
+    <small>Your key is stored only in this browser's local storage and is sent directly to the provider you choose — never through any other server. Leave the key blank to use Nova's built-in offline responses instead.</small>
+  </div>
+
+  <button class="save" onclick="saveSettings()">Save settings</button>
+</div>
+
+<script>
+let conversation=[];
+let memory=JSON.parse(localStorage.getItem("novaMemory")||"{}");
+let chats=JSON.parse(localStorage.getItem("novaChats")||"[]");
+let personality=localStorage.getItem("novaPersonality")||"friendly";
+let currentChat=null;
+
+let aiConfig={
+  provider:localStorage.getItem("novaProvider")||"anthropic",
+  apiKey:localStorage.getItem("novaApiKey")||"",
+  model:localStorage.getItem("novaModel")||"",
+  baseUrl:localStorage.getItem("novaBaseUrl")||""
+};
+
+const PROVIDER_DEFAULTS={
+  openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-4o"},
+  anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-6"}
+};
+
+const input=document.getElementById("input"),messages=document.getElementById("messages"),sendButton=document.getElementById("send");
+
+function saveMemory(){localStorage.setItem("novaMemory",JSON.stringify(memory))}
+function random(a){return a[Math.floor(Math.random()*a.length)]}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+function scroll(){setTimeout(()=>{const c=document.getElementById("chat");c.scrollTop=c.scrollHeight},20)}
+function isAiConnected(){return !!aiConfig.apiKey.trim()}
+
+function updateStatusBadge(){
+  const b=document.getElementById("statusBadge");
+  if(isAiConnected()){b.textContent="● Online";b.classList.remove("offline")}
+  else{b.textContent="● Offline";b.classList.add("offline")}
+  const d=document.getElementById("disclaimer");
+  d.textContent=isAiConnected()
+    ? "Connected to "+(aiConfig.provider==="anthropic"?"Anthropic":"an OpenAI-compatible provider")+" ("+(aiConfig.model||PROVIDER_DEFAULTS[aiConfig.provider].model)+"). Requests go directly from your browser to the provider."
+    : "Nova AI runs locally in this browser. Add an API key in Settings to enable real AI responses.";
+  const sub=document.getElementById("welcomeSub");
+  if(sub)sub.textContent=isAiConnected()?"Real AI responses, right in your browser — great for coding help.":"A private assistant that runs in your browser.";
+}
+
+async function send(){
+  const text=input.value.trim(); if(!text)return;
+  input.value="";resizeInput(input);document.getElementById("welcome")?.remove();
+  addMessage("user",text);conversation.push({role:"user",content:text});saveChat();sendButton.disabled=true;
+
+  // still capture "remember my name" locally so it persists across sessions via system prompt
+  const remember=text.match(/remember (?:that )?my name is (.+)/i);
+  if(remember){memory.name=remember[1].trim();saveMemory()}
+
+  const typing=typingMessage();
+  let answer;
+  try{
+    if(isAiConnected()){
+      answer=await callRealAI();
+    }else{
+      await wait(400);
+      answer=generateAI(text);
+    }
+  }catch(err){
+    console.error(err);
+    answer="⚠️ I couldn't reach the AI provider ("+(err.message||"unknown error")+"). Falling back to offline mode for this reply.\n\n"+generateAI(text);
+  }
+  typing.remove();
+  addMessage("ai",answer);conversation.push({role:"assistant",content:answer});saveChat();sendButton.disabled=false;input.focus();
+}
+
+function systemPrompt(){
+  let p="You are Nova AI, a helpful assistant embedded in a single-page web app. "+
+    "You are especially strong at coding: write correct, idiomatic, well-organized code, use fenced code blocks with the right language tag (e.g. ```python, ```javascript), keep comments purposeful rather than excessive, briefly explain non-obvious decisions, call out edge cases or trade-offs, and prefer giving complete runnable snippets over fragments unless the user asks for just a piece. When debugging, identify the root cause before proposing a fix. Ask a clarifying question only when the request is genuinely ambiguous.";
+  if(personality==="funny")p+=" Keep a light, funny, joking tone outside of code itself.";
+  else if(personality==="pirate")p+=" Respond in a pirate voice — 'arrr', 'matey', nautical slang — for your prose, while keeping code itself clean and normal.";
+  else if(personality==="professional")p+=" Keep prose clear and businesslike.";
+  else if(personality==="coding")p+=" Default to a terse, technical, engineer-to-engineer tone — skip pleasantries, lead with the answer.";
+  else p+=" Keep prose warm, friendly, and approachable.";
+  if(memory.name)p+=" The user's name is "+memory.name+"; use it naturally when appropriate.";
+  return p;
+}
+
+async function callRealAI(){
+  const history=conversation.slice(-20); // keep payload reasonable
+  if(aiConfig.provider==="anthropic")return callAnthropic(history);
+  return callOpenAICompatible(history);
+}
+
+async function callOpenAICompatible(history){
+  const base=(aiConfig.baseUrl||PROVIDER_DEFAULTS.openai.baseUrl).replace(/\/$/,"");
+  const res=await fetch(base+"/chat/completions",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+aiConfig.apiKey},
+    body:JSON.stringify({
+      model:aiConfig.model||PROVIDER_DEFAULTS.openai.model,
+      messages:[{role:"system",content:systemPrompt()},...history.map(m=>({role:m.role,content:m.content}))],
+      temperature:0.4,
+      max_tokens:4096
+    })
+  });
+  if(!res.ok){const t=await res.text().catch(()=>"");throw new Error("HTTP "+res.status+" "+t.slice(0,180))}
+  const data=await res.json();
+  const text=data?.choices?.[0]?.message?.content;
+  if(!text)throw new Error("No content in response");
+  return text;
+}
+
+async function callAnthropic(history){
+  const base=(aiConfig.baseUrl||PROVIDER_DEFAULTS.anthropic.baseUrl).replace(/\/$/,"");
+  const res=await fetch(base+"/messages",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key":aiConfig.apiKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true"
+    },
+    body:JSON.stringify({
+      model:aiConfig.model||PROVIDER_DEFAULTS.anthropic.model,
+      max_tokens:4096,
+      temperature:0.4,
+      system:systemPrompt(),
+      messages:history.map(m=>({role:m.role,content:m.content}))
+    })
+  });
+  if(!res.ok){const t=await res.text().catch(()=>"");throw new Error("HTTP "+res.status+" "+t.slice(0,180))}
+  const data=await res.json();
+  const text=(data?.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  if(!text)throw new Error("No content in response");
+  return text;
+}
+
+// ---- Offline fallback engine (used when no API key is set, or a request fails) ----
+function generateAI(text){
+  const original=text.trim(),t=original.toLowerCase();
+  const remember=t.match(/remember (?:that )?my name is (.+)/i);
+  if(remember){memory.name=remember[1].trim();saveMemory();return personalityText("Got it! I'll remember that your name is "+memory.name+".")}
+  if(t.includes("what is my name")||t.includes("do you know my name"))return memory.name?"Your name is "+memory.name+".":"You haven't told me your name yet. Try: “Remember that my name is Alex.”";
+  if(/^(hi|hello|hey|yo|sup|hiya)\b/.test(t))return personalityText("Hey"+(memory.name?" "+memory.name:"")+"! 👋 What are we building today?");
+  if(t.includes("thank"))return personalityText("You're welcome! 😎");
+  if(t.includes("who are you")||t.includes("what are you"))return personalityText("I'm Nova AI. Add an API key in Settings and I'll use a real, coding-capable AI model — otherwise I run on built-in offline rules, which are much more limited for code.");
+  if(t.includes("what can you do")||t.includes("what do you do"))return `I can do quite a few things! 🤖
+
+• 💬 Chat with you
+• 🧠 Remember your name
+• 🧮 Calculate math
+• 😂 Tell jokes
+• 📖 Create short stories
+• 💻 Help with HTML, CSS and JavaScript (basic offline; much stronger with a real AI key)
+• 🎮 Suggest game ideas
+• 🎨 Give creative ideas
+• 🌓 Switch themes
+• 💾 Save conversations in your browser
+• 🔌 Connect to a real AI model (Settings → Real AI) for genuinely smart coding help in any language
+
+Try asking me something!`;
+  if(/^[0-9+\-*/().%\s]+$/.test(original)){try{const result=Function('"use strict";return ('+original+')')();if(typeof result==="number"&&Number.isFinite(result))return "🧮 The answer is "+result+"."}catch(e){}}
+  if(t.includes("what time")||t==="time")return "🕒 Your computer's current time is "+new Date().toLocaleTimeString()+".";
+  if(t.includes("what date")||t.includes("today's date")||t==="date")return "📅 Today is "+new Date().toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"})+".";
+  if(t.includes("joke")||t.includes("make me laugh"))return random(["😂 Why did the computer go to the doctor? Because it had a virus!","🤣 Why was the JavaScript developer sad? Because they didn't know how to null their feelings.","😂 What do computers eat? Microchips!","🐱 Why did the cat sit on the computer? It wanted to keep an eye on the mouse.","🎮 Why did the gamer bring a ladder? Because they wanted to reach the next level!"]);
+  if(t.includes("tell me a story")||t.includes("make a story")||t.includes("short story"))return random([`📖 The Last Button
+
+Alex found a strange red button on an old computer.
+
+A message appeared: “DO NOT PRESS.”
+
+Alex stared at it.
+
+“Obviously I'm pressing it.”
+
+CLICK.
+
+The screen flashed.
+
+“CAT MODE ACTIVATED.”
+
+A cat appeared.
+
+The cat pressed the button again.
+
+“HUMAN MODE ACTIVATED.”
+
+Alex slowly looked at the cat.
+
+The cat looked back.
+
+“Meow.”
+
+Alex realized the cat had been controlling the computer all along. 🐱`,`📖 The Tiny Robot
+
+Bolt wanted to become the strongest robot in the world.
+
+He trained every day. He lifted batteries, raced charging cables, and even challenged a vacuum cleaner.
+
+One day, Bolt won.
+
+He became the strongest robot in the house.
+
+Then his owner picked him up.
+
+“Aww, who's my little robot?”
+
+Bolt sighed.
+
+Even the strongest robot could not escape being adorable. 🤖`]);
+  if(t.includes("cat"))return "🐱 Cats are mysterious creatures. They can sleep for hours, ignore you on purpose, and somehow know exactly when you are opening food.";
+  if(t.includes("dog"))return "🐶 Dogs have one amazing superpower: turning absolutely any ordinary event into the greatest event of their lives.";
+  if(t.includes("html")||t.includes("javascript")||t.includes("css")||t.includes("coding")||t.includes("code")||t.includes("python")||t.includes("function")||t.includes("bug"))return codingResponse(t);
+  if(t.includes("game")||t.includes("video game"))return `🎮 Here are some game ideas:
+
+1. ⚽ Soccer game
+2. 🏎️ Racing game
+3. 🧟 Zombie survival
+4. 🚀 Space shooter
+5. 🧩 Puzzle game
+6. 🏰 Tower defense
+7. 🥷 Ninja game
+8. 🐱 Cat adventure
+9. 🎢 Roller coaster simulator
+10. 🌎 Open-world explorer`;
+  if(t.includes("weather"))return "🌤️ I can't access live weather offline, but connect a real AI key with web-enabled tooling and I could help more there.";
+  if(t.includes("artificial intelligence")||t.includes("how does ai work"))return "🧠 AI systems learn patterns from data and use those patterns to make predictions or generate responses. Nova's offline mode is different: its replies are built from JavaScript rules. Add an API key in Settings to talk to a real trained model instead — much better for coding.";
+  if(t==="help"||t.includes("help me"))return `Sure! 😎 Try:
+
+“Write a Python function that reverses a linked list”
+“Tell me a joke”
+“Give me a game idea”
+“Write HTML for a button”
+“Calculate 25 * 8”
+“Remember that my name is Alex”
+“What is my name?”
+“Tell me a story”
+“What can you do?”
+
+Or add an API key in Settings → Real AI for genuinely smart, model-backed coding help.`;
+  if(t.includes("idea")||t.includes("ideas"))return `💡 Random project idea:
+
+Build “The Weakest Human.”
+
+You play as the weakest person alive and survive increasingly ridiculous challenges:
+
+🥊 Fight a chicken
+🎢 Ride a giant roller coaster
+✈️ Survive your first flight
+🌋 Escape a volcano
+👽 Defeat an alien
+
+The character gets stronger every time something ridiculous happens. 😂`;
+  if(t==="bye"||t.includes("goodbye"))return personalityText("See you later! 👋");
+  return personalityText(random([`Interesting! 🤔 Tell me a little more about “${original}”.`,"That's a good question! My offline brain doesn't have a specific response for that yet — add an API key in Settings for a real, coding-capable AI reply.","I can help with that if you give me a little more detail.","Interesting idea! Want to turn it into a game, website, story, or project?"]));
+}
+
+function codingResponse(t){
+  if(t.includes("button"))return "Here's a simple HTML button:\n\n```html\n<button onclick=\"alert('Hello!')\">\n  Click Me\n</button>\n```";
+  if(t.includes("website"))return "🌐 A website normally uses:\n\nHTML → structure\nCSS → design\nJavaScript → functionality\n\n```html\n<h1>Hello</h1>\n<p>My website</p>\n```";
+  if(t.includes("game"))return "🎮 For a browser game:\n\nHTML → game elements\nCSS → interface\nJavaScript → game logic\n\n```javascript\nfunction gameLoop(){\n  updateGame();\n  drawGame();\n  requestAnimationFrame(gameLoop);\n}\n\ngameLoop();\n```";
+  if(t.includes("python"))return "🐍 Nova's offline mode only knows a few canned snippets. For real Python help — writing, debugging, or reviewing actual code — add an API key in Settings → Real AI; I'll then read your code and respond properly.";
+  return "💻 Offline mode can only show a few canned HTML/CSS/JS snippets (try “button”, “website”, or “game”). For genuinely smart coding help in any language — writing, debugging, reviewing, explaining — add an API key in Settings → Real AI.";
+}
+
+function personalityText(text){
+  if(personality==="funny")return text+"\n\n😂 — Nova";
+  if(personality==="pirate")return "Arrr! 🏴‍☠️ "+text.replace(/\.$/,", matey!");
+  return text;
+}
+
+// ---- Lightweight markdown: fenced code blocks (with copy button) + inline code + paragraphs ----
+function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function renderContent(container,text){
+  container.innerHTML="";
+  const parts=text.split(/```(\w*)\n?([\s\S]*?)```/g);
+  // split gives: [plain, lang, code, plain, lang, code, ..., plain]
+  for(let i=0;i<parts.length;i+=3){
+    const plain=parts[i];
+    if(plain){
+      plain.split(/\n{2,}/).forEach(para=>{
+        if(!para.trim())return;
+        const p=document.createElement("p");
+        const withInlineCode=escapeHtml(para).replace(/`([^`]+)`/g,"<code>$1</code>");
+        p.innerHTML=withInlineCode;
+        container.appendChild(p);
+      });
+    }
+    const lang=parts[i+1],code=parts[i+2];
+    if(code!==undefined){
+      const block=document.createElement("div");block.className="codeBlock";
+      const head=document.createElement("div");head.className="codeBlockHead";
+      const label=document.createElement("span");label.textContent=lang||"code";
+      const btn=document.createElement("button");btn.className="copyBtn";btn.textContent="Copy";
+      btn.onclick=()=>{navigator.clipboard.writeText(code).then(()=>{btn.textContent="Copied!";setTimeout(()=>btn.textContent="Copy",1200)})};
+      head.append(label,btn);
+      const pre=document.createElement("pre");const codeEl=document.createElement("code");codeEl.textContent=code.replace(/\n$/,"");pre.appendChild(codeEl);
+      block.append(head,pre);container.appendChild(block);
+    }
+  }
+  if(!container.children.length)container.textContent=text;
+}
+
+function addMessage(type,text){
+  const m=document.createElement("div");m.className="message "+type;
+  const a=document.createElement("div");a.className="avatar";a.textContent=type==="ai"?"✦":"👤";
+  const c=document.createElement("div");c.className="messageContent";
+  const n=document.createElement("div");n.className="messageName";n.textContent=type==="ai"?"Nova AI":"You";
+  const b=document.createElement("div");
+  c.append(n,b);m.append(a,c);messages.appendChild(m);
+  renderContent(b,text);
+  scroll();return m;
+}
+function typingMessage(){const m=document.createElement("div");m.className="message ai";m.innerHTML='<div class="avatar">✦</div><div class="messageContent"><div class="messageName">Nova AI</div><div class="typing"><i></i><i></i><i></i></div></div>';messages.appendChild(m);scroll();return m}
+function ask(text){input.value=text;send()}
+function keyDown(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}}
+function resizeInput(el){el.style.height="auto";el.style.height=Math.min(el.scrollHeight,180)+"px"}
+
+function saveChat(){
+  if(!conversation.length)return;
+  const first=conversation.find(x=>x.role==="user"),title=first?first.content.slice(0,42):"New chat";
+  if(!currentChat){currentChat={id:Date.now(),title,messages:conversation};chats.unshift(currentChat)}
+  else currentChat.messages=conversation;
+  chats=chats.slice(0,30);localStorage.setItem("novaChats",JSON.stringify(chats));renderHistory();
+}
+function renderHistory(){const h=document.getElementById("history");h.innerHTML="";chats.forEach(c=>{const i=document.createElement("div");i.className="historyItem";i.textContent=c.title;i.onclick=()=>loadChat(c.id);h.appendChild(i)})}
+function loadChat(id){const c=chats.find(x=>x.id===id);if(!c)return;currentChat=c;conversation=[...c.messages];messages.innerHTML="";conversation.forEach(m=>addMessage(m.role==="user"?"user":"ai",m.content));if(innerWidth<700)toggleSidebar()}
+function newChat(){conversation=[];currentChat=null;messages.innerHTML='<div class="welcome" id="welcome"><div class="heroIcon">✦</div><h1>What can I help with?</h1><p id="welcomeSub">A private assistant that runs in your browser.</p><div class="suggestions"><button class="suggestion" onclick="ask(\'Write a Python function that reverses a linked list, with comments\')"><strong>💻 Coding help</strong><span>Write &amp; explain real code</span></button><button class="suggestion" onclick="ask(\'Review this function for bugs and suggest improvements\')"><strong>🔍 Code review</strong><span>Find bugs, suggest fixes</span></button><button class="suggestion" onclick="ask(\'Tell me a short story\')"><strong>📖 Tell me a story</strong><span>Make up an adventure</span></button><button class="suggestion" onclick="ask(\'What can you do?\')"><strong>🤖 What can you do?</strong><span>Explore Nova\'s abilities</span></button></div></div>';input.value="";updateStatusBadge();if(innerWidth<700)document.getElementById("sidebar").classList.remove("open")}
+function clearHistory(){if(!confirm("Delete all conversations?"))return;chats=[];conversation=[];currentChat=null;localStorage.removeItem("novaChats");renderHistory();newChat()}
+function toggleTheme(){const light=document.body.classList.toggle("light");const theme=light?"light":"dark";localStorage.setItem("novaTheme",theme);document.getElementById("themeSelect").value=theme}
+function changeTheme(theme){document.body.classList.toggle("light",theme==="light");localStorage.setItem("novaTheme",theme)}
+function openSettings(){
+  document.getElementById("provider").value=aiConfig.provider;
+  document.getElementById("apiKey").value=aiConfig.apiKey;
+  document.getElementById("modelName").value=aiConfig.model||PROVIDER_DEFAULTS[aiConfig.provider].model;
+  document.getElementById("baseUrl").value=aiConfig.baseUrl||PROVIDER_DEFAULTS[aiConfig.provider].baseUrl;
+  document.getElementById("overlay").classList.add("active");document.getElementById("settings").classList.add("active");
+}
+function closeSettings(){document.getElementById("overlay").classList.remove("active");document.getElementById("settings").classList.remove("active")}
+function updateProviderDefaults(){
+  const p=document.getElementById("provider").value;
+  document.getElementById("modelName").placeholder=PROVIDER_DEFAULTS[p].model;
+  document.getElementById("baseUrl").value=PROVIDER_DEFAULTS[p].baseUrl;
+}
+function saveSettings(){
+  personality=document.getElementById("personality").value;localStorage.setItem("novaPersonality",personality);
+  changeTheme(document.getElementById("themeSelect").value);
+
+  aiConfig.provider=document.getElementById("provider").value;
+  aiConfig.apiKey=document.getElementById("apiKey").value.trim();
+  aiConfig.model=document.getElementById("modelName").value.trim();
+  aiConfig.baseUrl=document.getElementById("baseUrl").value.trim();
+  localStorage.setItem("novaProvider",aiConfig.provider);
+  localStorage.setItem("novaApiKey",aiConfig.apiKey);
+  localStorage.setItem("novaModel",aiConfig.model);
+  localStorage.setItem("novaBaseUrl",aiConfig.baseUrl);
+
+  updateStatusBadge();
+  closeSettings();
+}
+function toggleSidebar(){document.getElementById("sidebar").classList.toggle("open")}
+
+const theme=localStorage.getItem("novaTheme")||"dark";changeTheme(theme);document.getElementById("themeSelect").value=theme;document.getElementById("personality").value=personality;
+document.getElementById("provider").value=aiConfig.provider;
+renderHistory();updateStatusBadge();input.focus();
+</script>
+</body>
+</html>
