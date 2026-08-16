@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,8 +143,6 @@ async function send(){
 function generateAI(text){
   const original=text.trim(),t=original.toLowerCase();
 
-  if(looksLikeCode(original))return codeReview(original);
-
   const remember=t.match(/remember (?:that )?my name is (.+)/i);
   if(remember){memory.name=remember[1].trim();saveMemory();return personalityText("Got it! I'll remember that your name is "+memory.name+".")}
   if(t.includes("what is my name")||t.includes("do you know my name"))return memory.name?"Your name is "+memory.name+".":"You haven't told me your name yet. Try: “Remember that my name is Alex.”";
@@ -216,7 +215,7 @@ Bolt sighed.
 Even the strongest robot could not escape being adorable. 🤖`]);
   if(t.includes("cat"))return "🐱 Cats are mysterious creatures. They can sleep for hours, ignore you on purpose, and somehow know exactly when you are opening food.";
   if(t.includes("dog"))return "🐶 Dogs have one amazing superpower: turning absolutely any ordinary event into the greatest event of their lives.";
-  if(t.includes("html")||t.includes("javascript")||t.includes("css")||t.includes("coding")||t.includes("code")||t.includes("python")||t.includes("function")||t.includes("bug")||t.includes("algorithm")||t.includes("array")||t.includes("loop")||t.includes("fizzbuzz")||t.includes("factorial")||t.includes("fibonacci")||t.includes("palindrome")||t.includes("prime")||t.includes("regex")||t.includes("json")||t.includes("recursion")||t.includes("recursive")||t.includes("class ")||t.includes("debounce")||t.includes("promise")||t.includes("async"))return codingResponse(t,original);
+  if(t.includes("html")||t.includes("javascript")||t.includes("css")||t.includes("coding")||t.includes("code")||t.includes("python")||t.includes("function")||t.includes("bug")||t.includes("algorithm")||t.includes("array")||t.includes("loop"))return codingResponse(t);
   if(t.includes("game")||t.includes("video game"))return `🎮 Here are some game ideas:
 
 1. ⚽ Soccer game
@@ -259,85 +258,19 @@ The character gets stronger every time something ridiculous happens. 😂`;
   return personalityText(random([`Interesting! 🤔 Tell me a little more about “${original}”.`,"That's a good question — I don't have a specific canned answer for that one yet. Try asking about code, math, jokes, stories, or ideas.","I can help with that if you give me a little more detail.","Interesting idea! Want to turn it into a game, website, story, or project?"]));
 }
 
-// ---- Real static analysis for pasted code (not just keyword matching) ----
-function analyzeCode(src){
-  const issues=[];
-  const openers={"(":")","[":"]","{":"}"};
-  const closers={")":"(","]":"[","}":"{"};
-  const stack=[];
-  let line=1;
-  for(const ch of src){
-    if(ch==="\n")line++;
-    if(openers[ch])stack.push({ch,line});
-    else if(closers[ch]){
-      const top=stack.pop();
-      if(!top||top.ch!==closers[ch])issues.push("Unmatched '"+ch+"' around line "+line+(top?" — expected a closing '"+openers[top.ch]+"' first":""));
-    }
-  }
-  stack.forEach(s=>issues.push("Unclosed '"+s.ch+"' opened on line "+s.line+" — never closed"));
-  const dq=(src.match(/"/g)||[]).length,sq=(src.match(/'/g)||[]).length;
-  if(dq%2!==0)issues.push('Odd number of " characters — a string literal may be unclosed');
-  if(sq%2!==0)issues.push("Odd number of ' characters — a string literal may be unclosed");
-  if(/if\s*\([^()]*[^=!<>]=[^=][^()]*\)/.test(src))issues.push("Possible '=' (assignment) where '==' or '===' (comparison) was meant, inside an if(...) condition");
-  if(/\bfor\s*\(([^;()]*)\)/.test(src)&&!/\bfor\s*\([^;()]*;[^;()]*;[^;()]*\)/.test(src)&&/\bfor\s*\(/.test(src.match(/for\s*\([^)]*\)/)?.[0]||"")&&!(/for\s*\(\s*(const|let|var)\s+\w+\s+(in|of)\s+/.test(src)))issues.push("A for(...) loop may be missing its semicolons — expected for(init; condition; step)");
-  return issues;
-}
-function looksLikeCode(s){return /\n/.test(s)&&/[{}();]/.test(s)&&s.length>40}
-function codeReview(original){
-  const issues=analyzeCode(original);
-  if(issues.length)return "🔍 I scanned what you pasted and found:\n\n"+issues.map(i=>"• "+i).join("\n")+"\n\nWorth checking those first — structural issues like these usually break everything downstream before any actual logic runs.";
-  return "🔍 I didn't find any unbalanced brackets, unclosed strings, or an `=`/`==` mix-up in an if(...) — so if it's still misbehaving, the bug is likely logical rather than structural. Common culprits: an off-by-one loop bound, a variable mutated somewhere unexpected, a comparison that's true/false when you didn't expect, or a `return` firing earlier than intended. Tell me what you expected vs. what actually happened and I can narrow it down further.";
-}
-
-function codingResponse(t,original){
-  if(looksLikeCode(original))return codeReview(original);
-  const py=t.includes("python");
-  if(t.includes("soccer")||t.includes("football"))return "⚽ A simple playable soccer mini-game — arrow keys move the blue player, bump the ball to kick it, score by getting it into the top goal:\n\n```html\n<canvas id=\"c\" width=\"480\" height=\"320\" style=\"background:#1a8f3c;display:block;margin:auto\"></canvas>\n<script>\nconst cv=document.getElementById('c'),ctx=cv.getContext('2d');\nlet player={x:240,y:280,r:14},ball={x:240,y:160,r:9,vx:0,vy:0},score=0,keys={};\naddEventListener('keydown',e=>keys[e.key]=true);\naddEventListener('keyup',e=>keys[e.key]=false);\nfunction update(){\n  const s=3;\n  if(keys['ArrowLeft'])player.x-=s;\n  if(keys['ArrowRight'])player.x+=s;\n  if(keys['ArrowUp'])player.y-=s;\n  if(keys['ArrowDown'])player.y+=s;\n  player.x=Math.max(14,Math.min(466,player.x));\n  player.y=Math.max(14,Math.min(306,player.y));\n  const dx=ball.x-player.x,dy=ball.y-player.y,dist=Math.hypot(dx,dy)||1;\n  if(dist<player.r+ball.r+4){ball.vx=dx/dist*6;ball.vy=dy/dist*6}\n  ball.x+=ball.vx;ball.y+=ball.vy;ball.vx*=.98;ball.vy*=.98;\n  if(ball.x<9||ball.x>471)ball.vx*=-1;\n  if(ball.y<9)ball.vy*=-1;\n  if(ball.y>311){ball.x=240;ball.y=160;ball.vx=0;ball.vy=0}\n  if(ball.y<25&&ball.x>190&&ball.x<290){score++;ball.x=240;ball.y=160;ball.vx=0;ball.vy=0}\n}\nfunction draw(){\n  ctx.clearRect(0,0,480,320);\n  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(5,5,470,310);\n  ctx.strokeStyle='#ffe27a';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(190,5);ctx.lineTo(290,5);ctx.stroke();\n  ctx.fillStyle='#fff';ctx.font='16px sans-serif';ctx.fillText('Score: '+score,10,300);\n  ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,7);ctx.fillStyle='#1e3a8a';ctx.fill();\n  ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,7);ctx.fillStyle='#fff';ctx.fill();\n}\nfunction loop(){update();draw();requestAnimationFrame(loop)}\nloop();\n<\/script>\n```\n\nSave that as an .html file and open it — arrow keys to move, bump the ball into the yellow goal line to score.";
-  if(t.includes("snake"))return "🐍 A classic Snake game, playable with arrow keys:\n\n```html\n<canvas id=\"c\" width=\"320\" height=\"320\" style=\"background:#111;display:block;margin:auto\"></canvas>\n<script>\nconst cv=document.getElementById('c'),ctx=cv.getContext('2d'),size=16,cols=20,rows=20;\nlet snake=[{x:10,y:10}],dir={x:1,y:0},score=0;\nfunction spawnFood(){return{x:Math.floor(Math.random()*cols),y:Math.floor(Math.random()*rows)}}\nlet food=spawnFood();\naddEventListener('keydown',e=>{\n  if(e.key==='ArrowUp'&&dir.y!==1)dir={x:0,y:-1};\n  if(e.key==='ArrowDown'&&dir.y!==-1)dir={x:0,y:1};\n  if(e.key==='ArrowLeft'&&dir.x!==1)dir={x:-1,y:0};\n  if(e.key==='ArrowRight'&&dir.x!==-1)dir={x:1,y:0};\n});\nfunction update(){\n  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};\n  if(head.x<0||head.y<0||head.x>=cols||head.y>=rows||snake.some(s=>s.x===head.x&&s.y===head.y)){\n    snake=[{x:10,y:10}];dir={x:1,y:0};score=0;return;\n  }\n  snake.unshift(head);\n  if(head.x===food.x&&head.y===food.y){score++;food=spawnFood()}\n  else snake.pop();\n}\nfunction draw(){\n  ctx.fillStyle='#111';ctx.fillRect(0,0,320,320);\n  ctx.fillStyle='#4ade80';snake.forEach(s=>ctx.fillRect(s.x*size,s.y*size,size-1,size-1));\n  ctx.fillStyle='#f87171';ctx.fillRect(food.x*size,food.y*size,size-1,size-1);\n  ctx.fillStyle='#fff';ctx.font='14px sans-serif';ctx.fillText('Score: '+score,4,14);\n}\nlet last=0;\nfunction loop(t){if(t-last>110){update();draw();last=t}requestAnimationFrame(loop)}\nrequestAnimationFrame(loop);\n<\/script>\n```";
-  if(t.includes("pong"))return "🏓 Pong — move your paddle with the mouse, play against a simple AI:\n\n```html\n<canvas id=\"c\" width=\"480\" height=\"320\" style=\"background:#111;display:block;margin:auto\"></canvas>\n<script>\nconst cv=document.getElementById('c'),ctx=cv.getContext('2d');\nlet player={y:140,h:60},ai={y:140,h:60},ball={x:240,y:160,vx:4,vy:3};\naddEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();player.y=e.clientY-r.top-30});\nfunction update(){\n  ball.x+=ball.vx;ball.y+=ball.vy;\n  if(ball.y<0||ball.y>320)ball.vy*=-1;\n  if(ball.x<20&&ball.y>player.y&&ball.y<player.y+player.h)ball.vx*=-1.05;\n  if(ball.x>460&&ball.y>ai.y&&ball.y<ai.y+ai.h)ball.vx*=-1.05;\n  if(ball.x<0||ball.x>480){ball.x=240;ball.y=160;ball.vx=4;ball.vy=3}\n  ai.y+=(ball.y-ai.y-30)*.06;\n}\nfunction draw(){\n  ctx.fillStyle='#111';ctx.fillRect(0,0,480,320);\n  ctx.fillStyle='#fff';\n  ctx.fillRect(10,player.y,10,player.h);\n  ctx.fillRect(460,ai.y,10,ai.h);\n  ctx.beginPath();ctx.arc(ball.x,ball.y,6,0,7);ctx.fill();\n}\nfunction loop(){update();draw();requestAnimationFrame(loop)}\nloop();\n<\/script>\n```";
-  if(t.includes("tic tac toe")||t.includes("tic-tac-toe")||t.includes("tictactoe"))return "⭕ Two-player Tic-Tac-Toe:\n\n```html\n<div id=\"board\" style=\"display:grid;grid-template-columns:repeat(3,80px);gap:4px;margin:20px auto;width:252px\"></div>\n<div id=\"msg\" style=\"text-align:center;font:16px sans-serif\"></div>\n<script>\nlet cells=Array(9).fill(null),turn='X';\nconst board=document.getElementById('board'),msg=document.getElementById('msg');\nfunction winner(){\n  const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];\n  for(const[a,b,c] of lines)if(cells[a]&&cells[a]===cells[b]&&cells[a]===cells[c])return cells[a];\n  return null;\n}\nfunction render(){\n  board.innerHTML='';\n  cells.forEach((v,i)=>{\n    const d=document.createElement('div');\n    d.textContent=v||'';\n    d.style.cssText='height:80px;background:#222;color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;cursor:pointer';\n    d.onclick=()=>move(i);\n    board.appendChild(d);\n  });\n}\nfunction move(i){\n  if(cells[i]||winner())return;\n  cells[i]=turn;turn=turn==='X'?'O':'X';render();\n  const w=winner();\n  msg.textContent=w?w+' wins!':cells.every(Boolean)?'Draw!':'';\n}\nrender();\n<\/script>\n```";
+function codingResponse(t){
   if(t.includes("button"))return "Here's a simple HTML button:\n\n```html\n<button onclick=\"alert('Hello!')\">\n  Click Me\n</button>\n```";
   if(t.includes("center"))return "Centering in CSS (flexbox, the modern way):\n\n```css\n.container{\n  display:flex;\n  align-items:center;\n  justify-content:center;\n}\n```";
   if(t.includes("website"))return "🌐 A website normally uses:\n\nHTML → structure\nCSS → design\nJavaScript → functionality\n\n```html\n<h1>Hello</h1>\n<p>My website</p>\n```";
   if(t.includes("fetch")||t.includes("api call")||t.includes("http request"))return "Fetching data with JavaScript:\n\n```javascript\nasync function getData(url){\n  const res=await fetch(url);\n  if(!res.ok) throw new Error(\"HTTP \"+res.status);\n  return res.json();\n}\n```";
-  if(t.includes("fizzbuzz"))return py
-    ? "FizzBuzz in Python:\n\n```python\nfor i in range(1, 101):\n    if i % 15 == 0:\n        print(\"FizzBuzz\")\n    elif i % 3 == 0:\n        print(\"Fizz\")\n    elif i % 5 == 0:\n        print(\"Buzz\")\n    else:\n        print(i)\n```"
-    : "FizzBuzz in JavaScript:\n\n```javascript\nfor(let i=1;i<=100;i++){\n  if(i%15===0)console.log(\"FizzBuzz\");\n  else if(i%3===0)console.log(\"Fizz\");\n  else if(i%5===0)console.log(\"Buzz\");\n  else console.log(i);\n}\n```";
-  if(t.includes("factorial"))return py
-    ? "Factorial in Python (iterative, avoids recursion limits):\n\n```python\ndef factorial(n):\n    result = 1\n    for i in range(2, n + 1):\n        result *= i\n    return result\n```"
-    : "Factorial in JavaScript:\n\n```javascript\nfunction factorial(n){\n  let result=1;\n  for(let i=2;i<=n;i++)result*=i;\n  return result;\n}\n```\n\nA recursive version works too (`n<=1?1:n*factorial(n-1)`), but the loop avoids stack-depth issues for large n.";
-  if(t.includes("fibonacci"))return py
-    ? "Fibonacci in Python (iterative — fast, no recursion blowup):\n\n```python\ndef fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n```"
-    : "Fibonacci in JavaScript (iterative):\n\n```javascript\nfunction fibonacci(n){\n  let a=0,b=1;\n  for(let i=0;i<n;i++)[a,b]=[b,a+b];\n  return a;\n}\n```\n\nA naive recursive version is O(2ⁿ) and gets very slow past ~35 — the iterative version is O(n).";
-  if(t.includes("palindrome"))return py
-    ? "Palindrome check in Python:\n\n```python\ndef is_palindrome(s):\n    cleaned = ''.join(c.lower() for c in s if c.isalnum())\n    return cleaned == cleaned[::-1]\n```"
-    : "Palindrome check in JavaScript:\n\n```javascript\nfunction isPalindrome(s){\n  const cleaned=s.toLowerCase().replace(/[^a-z0-9]/g,'');\n  return cleaned===[...cleaned].reverse().join('');\n}\n```";
-  if(t.includes("prime"))return py
-    ? "Prime check in Python:\n\n```python\ndef is_prime(n):\n    if n < 2:\n        return False\n    for i in range(2, int(n ** 0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n```"
-    : "Prime check in JavaScript:\n\n```javascript\nfunction isPrime(n){\n  if(n<2)return false;\n  for(let i=2;i<=Math.sqrt(n);i++)if(n%i===0)return false;\n  return true;\n}\n```\n\nOnly checking up to √n is what keeps this fast — any factor larger than √n would have a matching factor smaller than √n.";
-  if(t.includes("binary search"))return py
-    ? "Binary search in Python (array must be sorted):\n\n```python\ndef binary_search(arr, target):\n    lo, hi = 0, len(arr) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1\n```"
-    : "Binary search in JavaScript (array must be sorted):\n\n```javascript\nfunction binarySearch(arr,target){\n  let lo=0,hi=arr.length-1;\n  while(lo<=hi){\n    const mid=(lo+hi)>>1;\n    if(arr[mid]===target)return mid;\n    if(arr[mid]<target)lo=mid+1;\n    else hi=mid-1;\n  }\n  return -1;\n}\n```\n\nO(log n) — each step halves the search space, so it stays fast even on huge sorted arrays.";
   if(t.includes("sort"))return "A simple sort in JavaScript:\n\n```javascript\nfunction sortNumbers(arr){\n  return [...arr].sort((a,b)=>a-b);\n}\n```\n\nFor most languages, prefer the built-in sort unless you have a specific reason to hand-roll one — it's well-tested and usually fast enough.";
-  if(t.includes("debounce"))return "A debounce helper (delays a function until input has paused — great for search boxes/resize handlers):\n\n```javascript\nfunction debounce(fn, delay){\n  let timer;\n  return (...args)=>{\n    clearTimeout(timer);\n    timer=setTimeout(()=>fn(...args), delay);\n  };\n}\n```";
-  if(t.includes("promise")||t.includes("async"))return "async/await with proper error handling:\n\n```javascript\nasync function loadUser(id){\n  try{\n    const res=await fetch(`/api/users/${id}`);\n    if(!res.ok) throw new Error(\"HTTP \"+res.status);\n    return await res.json();\n  }catch(err){\n    console.error(\"Failed to load user:\",err);\n    throw err;\n  }\n}\n```";
-  if((t.includes("try")&&t.includes("catch"))||t.includes("error handling"))return "Try/catch pattern in JavaScript:\n\n```javascript\ntry{\n  riskyOperation();\n}catch(err){\n  console.error(\"Something went wrong:\",err.message);\n}finally{\n  cleanup();\n}\n```\n\n`finally` always runs, whether or not an error was thrown — good for cleanup like closing a connection.";
-  if(t.includes("class")||t.includes("oop")||t.includes("object oriented"))return py
-    ? "A basic Python class:\n\n```python\nclass Dog:\n    def __init__(self, name):\n        self.name = name\n\n    def bark(self):\n        return f\"{self.name} says woof!\"\n```"
-    : "A basic JavaScript class:\n\n```javascript\nclass Dog{\n  constructor(name){\n    this.name=name;\n  }\n  bark(){\n    return `${this.name} says woof!`;\n  }\n}\n```";
-  if(t.includes("recursion")||t.includes("recursive"))return "A recursive function has two parts: a **base case** that stops the recursion, and a **recursive case** that calls itself on a smaller version of the problem.\n\n```javascript\nfunction countDown(n){\n  if(n<=0)return; // base case\n  console.log(n);\n  countDown(n-1); // recursive case\n}\n```\n\nMiss the base case and it recurses forever (stack overflow) — that's the #1 recursion bug.";
-  if(t.includes("regex")||t.includes("regular expression"))return "A few common JavaScript regex patterns:\n\n```javascript\nconst isEmail=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nconst digitsOnly=str.replace(/\\D/g,'');\nconst words=str.match(/\\w+/g);\n```";
-  if(t.includes("json"))return "Working with JSON in JavaScript:\n\n```javascript\nconst str=JSON.stringify({name:\"Nova\",online:false}); // object → string\nconst obj=JSON.parse(str); // string → object\n```\n\n`JSON.parse` throws on invalid JSON — wrap it in try/catch if the input isn't guaranteed valid.";
-  if(t.includes("event listener")||t.includes("addeventlistener"))return "Adding an event listener:\n\n```javascript\nbutton.addEventListener('click', (e)=>{\n  console.log('Clicked!', e.target);\n});\n```";
-  if(t.includes("dedupe")||t.includes("duplicate")||t.includes("unique"))return "Removing duplicates from an array:\n\n```javascript\nconst unique=[...new Set(arr)];\n```\n\nWorks for primitives (numbers/strings). For objects/arrays, you'll need to dedupe by a key instead, since `Set` compares by reference.";
-  if(t.includes("reverse")&&t.includes("string"))return "Reversing a string in JavaScript:\n\n```javascript\nconst reversed=str.split('').reverse().join('');\n```";
   if(t.includes("linked list"))return "Reversing a singly linked list in Python:\n\n```python\nclass Node:\n    def __init__(self, val, next=None):\n        self.val = val\n        self.next = next\n\ndef reverse(head):\n    prev = None\n    curr = head\n    while curr:\n        nxt = curr.next   # save the next node before we overwrite it\n        curr.next = prev  # point this node back at the previous one\n        prev = curr\n        curr = nxt\n    return prev  # prev is now the new head\n```\n\nThe trick is walking the list once, flipping each `next` pointer as you go, and keeping a `prev` pointer so you don't lose the rest of the list.";
-  if(t.includes("game"))return "🎮 I've got full working code for a few specific games — try asking for “soccer game”, “snake game”, “pong game”, or “tic tac toe”. For something else, tell me more about the game mechanics and I'll do my best offline.";
-  if(t.includes("bug")||t.includes("review")||t.includes("debug"))return "Paste the actual code (not just a description) and I'll run a real check for unbalanced brackets, unclosed strings, and `=`/`==` mix-ups — plus point out likely logical culprits if nothing structural turns up.";
+  if(t.includes("game"))return "🎮 For a browser game:\n\nHTML → game elements\nCSS → interface\nJavaScript → game logic\n\n```javascript\nfunction gameLoop(){\n  updateGame();\n  drawGame();\n  requestAnimationFrame(gameLoop);\n}\n\ngameLoop();\n```";
+  if(t.includes("bug")||t.includes("review")||t.includes("debug"))return "Paste the actual code and I'll take a look — I can spot common issues offline: off-by-one loop bounds, unclosed brackets/tags, `==` vs `===`, missing `return` statements, unhandled edge cases like empty arrays or null values, and mismatched variable names.";
   if(t.includes("loop"))return "The three most common JavaScript loops:\n\n```javascript\nfor(let i=0;i<arr.length;i++){ /* index-based */ }\nfor(const item of arr){ /* values */ }\narr.forEach(item=>{ /* callback style */ });\n```";
   if(t.includes("array"))return "Common array operations in JavaScript:\n\n```javascript\nconst doubled=arr.map(x=>x*2);\nconst evens=arr.filter(x=>x%2===0);\nconst total=arr.reduce((sum,x)=>sum+x,0);\n```";
-  if(t.includes("python"))return "Tell me more specifically what you're trying to do in Python — e.g. “sort a list”, “reverse a linked list”, “fizzbuzz”, “check if a number is prime” — and I'll give you a concrete snippet.";
-  return "💻 I can offer real snippets for things like “fizzbuzz”, “factorial”, “fibonacci”, “palindrome check”, “prime check”, “binary search”, “debounce”, “async/await”, “try/catch”, “a class”, “recursion”, “regex”, “JSON”, “dedupe an array”, “reverse a string”, or “center a div” — or just paste your actual code and I'll check it for real bugs. Add “in python” to switch language on the ones that support it.";
+  if(t.includes("python"))return "Tell me more specifically what you're trying to do in Python — e.g. “sort a list”, “reverse a linked list”, “read a file” — and I'll give you a concrete snippet.";
+  return "💻 I can offer canned snippets for things like “button”, “center a div”, “fetch data”, “sort an array”, “reverse a linked list”, “loops”, or general array operations — try naming the specific thing you're building.";
 }
 
 function personalityText(text){
